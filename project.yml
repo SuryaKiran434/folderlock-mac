@@ -1,0 +1,89 @@
+name: FolderLock
+options:
+  bundleIdPrefix: com.folderlock
+  deploymentTarget:
+    macOS: "13.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: YES
+
+targets:
+  FolderLockCore:
+    type: framework
+    platform: macOS
+    sources:
+      - path: Sources/Core
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.folderlock.FolderLockCore
+        DEFINES_MODULE: YES
+        DYLIB_INSTALL_NAME_BASE: "@rpath"
+        SKIP_INSTALL: YES
+        GENERATE_INFOPLIST_FILE: YES
+
+  FolderLock:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/App
+    info:
+      path: Resources/App/Info.plist
+      properties:
+        CFBundleDisplayName: FolderLock
+        CFBundleShortVersionString: "1.0.0"
+        LSMinimumSystemVersion: "13.0"
+        NSHumanReadableCopyright: "FolderLock"
+        CFBundleURLTypes:
+          - CFBundleURLName: com.folderlock.FolderLock.url
+            CFBundleURLSchemes: [folderlock]
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.folderlock.locked
+            UTTypeDescription: FolderLock Encrypted Item
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification:
+              public.filename-extension: [locked]
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: FolderLock Encrypted Item
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Owner
+            LSItemContentTypes: [com.folderlock.locked]
+    dependencies:
+      - target: FolderLockCore
+      - target: FolderLockFinder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.folderlock.FolderLock
+        GENERATE_INFOPLIST_FILE: NO
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+
+  FolderLockFinder:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Sources/FinderExtension
+    info:
+      path: Resources/FinderExtension/Info.plist
+      properties:
+        CFBundleDisplayName: FolderLockFinder
+        CFBundleShortVersionString: "1.0.0"
+        LSMinimumSystemVersion: "13.0"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.FinderSync
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).FinderSync
+    entitlements:
+      path: Resources/FinderExtension/FolderLockFinder.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.files.user-selected.read-write: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.folderlock.FolderLock.Finder
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
