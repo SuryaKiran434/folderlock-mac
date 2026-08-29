@@ -1,0 +1,13 @@
+version: 2
+
+updates:
+  # This project builds via XcodeGen (project.yml), not Swift Package Manager,
+  # so there is no Package.swift for Dependabot to resolve. Actions are the
+  # only watchable ecosystem today; add a `swift` block if SPM is adopted.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    # Action majors ARE taken: GitHub deprecates old action runtimes
+    # (v4/v5 tags now force onto Node 24), so these need to move.
