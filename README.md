@@ -108,10 +108,42 @@ FolderLock/
 │   ├── Core/                  # Crypto framework (no UI)
 │   ├── App/                   # SwiftUI main app
 │   └── FinderExtension/       # Right-click menu provider
+├── .github/
+│   ├── workflows/ci.yml       # Build (macOS) + CodeQL
+│   ├── workflows/slack-notify.yml
+│   └── dependabot.yml         # Weekly, GitHub Actions only
 └── README.md
 ```
 
 `FolderLock.xcodeproj/`, generated Info.plists, and entitlements are git-ignored — every developer regenerates them with `xcodegen`.
+
+---
+
+## CI
+
+`.github/workflows/ci.yml` runs on every push and pull request, on `macos-latest`:
+
+| Step | Does |
+|---|---|
+| Install XcodeGen | `brew install xcodegen` |
+| Generate Xcode project | `xcodegen` — the `.xcodeproj` is git-ignored, so CI builds it the same way a developer does |
+| Build all targets | `xcodebuild` over Core, App and the Finder extension |
+| CodeQL | Swift analysis, wrapped around the build |
+
+CodeQL needs an explicit build here rather than its default autobuild: a compiled
+language gives the analyser nothing to work with unless it observes a real
+compilation, and autobuild cannot drive a project that does not exist until
+`xcodegen` has run.
+
+Dependency updates arrive weekly through Dependabot (`.github/dependabot.yml`).
+GitHub Actions is the only ecosystem it watches — the project builds through
+XcodeGen rather than Swift Package Manager, so there is no `Package.swift` to
+resolve. Action **majors** are accepted rather than ignored, because GitHub
+retires old action runtimes and a pinned major eventually stops running at all.
+
+There are no automated tests yet. The build and CodeQL are the whole of the
+signal, which is worth knowing before trusting a green check on a crypto tool —
+see [Security caveats](#security-caveats).
 
 ---
 
