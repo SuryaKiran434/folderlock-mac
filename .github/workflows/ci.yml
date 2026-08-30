@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege for GITHUB_TOKEN. The build itself only needs to read the
+# repository; the single extra scope is `security-events: write`, requested on
+# the job that owns it, because github/codeql-action/analyze uploads the SARIF
+# results to the repository's code scanning API.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 40
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # There is no .xcodeproj in the repository -- it is generated from
+      # project.yml, which is why CodeQL's autobuild had nothing to find and
+      # why this workflow has to use build-mode: manual.
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: |
+          xcodegen generate
+          xcodebuild -list -project FolderLock.xcodeproj
+
+      # Must come before the build: CodeQL installs compiler wrappers here and
+      # only sees source that is compiled after this step runs.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          languages: swift
+          build-mode: manual
+
+      # Building the FolderLock scheme builds all three targets, because the
+      # app depends on both FolderLockCore (the crypto framework) and
+      # FolderLockFinder (the Finder Sync app-extension).
+      #
+      # A hosted runner has no signing identity, so the project's automatic
+      # signing, hardened runtime and the extension's entitlements all have to
+      # be turned off for the compile-only build. This is a CI analysis build,
+      # never a shippable artifact -- a real release is signed locally.
+      - name: Build all targets
+        run: |
+          xcodebuild build \
+            -project FolderLock.xcodeproj \
+            -scheme FolderLock \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            DEVELOPMENT_TEAM="" \
+            ENABLE_HARDENED_RUNTIME=NO
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          category: "/language:swift"
