@@ -75,7 +75,8 @@ Right-click any file in Finder. You should see **Lock with FolderLock**.
 | Lock a file or folder | Right-click in Finder → **Lock with FolderLock** |
 | Unlock | Right-click `.locked` file → **Unlock with FolderLock**, or double-click it |
 | Batch lock/unlock | Drag items into the FolderLock window |
-| From scripts | Open `folderlock://lock?path=/abs/path` |
+| From the app menu | **File → Lock File or Folder…** (⌘O) or **Unlock Locked Item…** (⇧⌘O) |
+| From scripts | Open `folderlock://lock?path=/abs/path` (repeat `path=` to pass several items; `folderlock://unlock?...` to reverse) |
 
 After locking, the original file or folder is removed and replaced by a single `.locked` file.
 
@@ -90,6 +91,7 @@ FolderLock.app  ◄── URL scheme ── FolderLockFinder.appex  (Finder righ
 ```
 
 - The Finder extension does no crypto — it just builds `folderlock://` URLs and asks the main app to handle them.
+- The menu item is only offered for a *uniform* selection: all-unlocked shows **Lock with FolderLock**, all-`.locked` shows **Unlock with FolderLock**. A mixed selection shows neither.
 - The main app reads the file, derives a key from the password, encrypts with AES-256-GCM, writes `.locked`, deletes the original.
 - Unlock reverses it. GCM auth tags detect wrong passwords (and any tampering) before anything is written.
 
@@ -102,7 +104,7 @@ FolderLock.app  ◄── URL scheme ── FolderLockFinder.appex  (Finder righ
 ## Project structure
 
 ```
-FolderLock/
+folderlock-mac/
 ├── project.yml                # XcodeGen config
 ├── Sources/
 │   ├── Core/                  # Crypto framework (no UI)
@@ -111,7 +113,9 @@ FolderLock/
 ├── .github/
 │   ├── workflows/ci.yml       # Build (macOS) + CodeQL
 │   ├── workflows/slack-notify.yml
+│   ├── workflows/dependabot-auto-merge.yml
 │   └── dependabot.yml         # Weekly, GitHub Actions only
+├── LICENSE
 └── README.md
 ```
 
@@ -121,7 +125,8 @@ FolderLock/
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every push and pull request, on `macos-latest`:
+`.github/workflows/ci.yml` runs on pushes to `main` and on every pull request, on
+`macos-latest`. The single `Build (macOS)` job typically takes 20-30 minutes:
 
 | Step | Does |
 |---|---|
@@ -140,6 +145,14 @@ GitHub Actions is the only ecosystem it watches — the project builds through
 XcodeGen rather than Swift Package Manager, so there is no `Package.swift` to
 resolve. Action **majors** are accepted rather than ignored, because GitHub
 retires old action runtimes and a pinned major eventually stops running at all.
+
+Minor and patch bumps are collapsed into **one grouped PR per week**; majors are
+kept out of the group so they arrive on their own.
+`.github/workflows/dependabot-auto-merge.yml` keys on that split: a grouped
+patch/minor PR gets auto-merge enabled and merges itself once the required
+checks pass, while a major waits for a human. Auto-merge only *queues* the
+merge — a failing `Build (macOS)` leaves the PR open exactly as it would
+without the workflow.
 
 There are no automated tests yet. The build and CodeQL are the whole of the
 signal, which is worth knowing before trusting a green check on a crypto tool —
